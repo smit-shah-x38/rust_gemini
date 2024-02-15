@@ -1,0 +1,66 @@
+use reqwest::Client;
+use serde_json::{json, Value};
+use std::env;
+use std::fs::read_to_string;
+use try_blocks::try_block;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Read API key from environment variable or file
+    let api_key = env::var("GOOGLE_API_KEY")
+        .or_else(|_| read_to_string("E:\\Work\\workbackups\\localdata\\googleapi.txt"))
+        .expect("Failed to read API key");
+
+    let url = "https://language.googleapis.com/v1/projects/.../conversations:complete";
+
+    let mut client: Client = try_block!(
+        let mut client = Client::new();
+        client
+    ); // Check for errors
+
+    let request_body = json!({
+        "textInput": "Hello, Gemini Pro!",
+        "role": "USER"
+    });
+
+    let mut response = client
+        .post(url)
+        .header("Authorization", format!("Bearer {}", api_key))
+        .json(&request_body)
+        .send()?;
+
+    let mut conversation = String::new();
+
+    for mut response_json in response.json::<Value>()? {
+        let generated_text = response_json["generatedText"]["text"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        conversation.push_str(&format!("Gemini Pro: {}\n", generated_text));
+
+        if let Some(messages) = response_json["messages"].as_array() {
+            for message in messages {
+                let text = message["text"]["text"].as_str().unwrap().to_string();
+                conversation.push_str(&format!("You: {}\n", text));
+            }
+        }
+
+        // Send your response as user input
+        let request_body = json!({
+            "textInput": "Why is homo Sapiens the dominant species on Earth?", // Replace with your input
+            "role": "USER",
+            "conversationHistory": conversation
+        });
+
+        response = client
+            .post(url)
+            .header("Authorization", format!("Bearer {}", api_key))
+            .json(&request_body)
+            .send()?;
+    }
+
+    response.close()?; // Close the response object
+
+    println!("Full conversation:\n{}", conversation);
+
+    Ok(())
+}

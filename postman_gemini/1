@@ -1,0 +1,36 @@
+use reqwest;
+use serde_json;
+use tokio;
+use serde_json::json;
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = reqwest::Client::builder().build()?;
+
+    let mut headers = reqwest::header::HeaderMap::new();
+    headers.insert("Content-Type", "application/json".parse()?);
+
+    let data = r#"{
+    "contents": [
+        {
+            "parts": [
+                {
+                    "text": "Write a story about a magic backpack."
+                }
+            ]
+        }
+    ]
+}"#;
+
+    let json: serde_json::Value = serde_json::from_str(&data)?;
+    let json_string = json!(your_data);
+    let request = client.request(reqwest::Method::POST, "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=$API_KEY")
+        .headers(headers)
+        .body(json_string);
+
+    let response = request.send().await?;
+    let body = response.text().await?;
+
+    println!("{}", body);
+
+    Ok(())
+}
