@@ -1,9 +1,65 @@
 use reqwest;
 use reqwest::Client;
 use serde_json;
+use serde::{Serialize, Deserialize};
 use std::env;
 use std::fs::read_to_string;
 use tokio;
+
+#[derive(Serialize, Deserialize)]
+pub struct RespObj {
+    #[serde(rename = "candidates")]
+    candidates: Vec<Candidate>,
+
+    #[serde(rename = "promptFeedback")]
+    prompt_feedback: PromptFeedback,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct Candidate {
+    #[serde(rename = "content")]
+    content: Content,
+
+    #[serde(rename = "finishReason")]
+    finish_reason: String,
+
+    #[serde(rename = "index")]
+    index: i64,
+
+    #[serde(rename = "safetyRatings")]
+    safety_ratings: Vec<SafetyRating>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct Content {
+    #[serde(rename = "parts")]
+    parts: Vec<Part>,
+
+    #[serde(rename = "role")]
+    role: String,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct Part {
+    #[serde(rename = "text")]
+    text: String,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct SafetyRating {
+    #[serde(rename = "category")]
+    category: String,
+
+    #[serde(rename = "probability")]
+    probability: String,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct PromptFeedback {
+    #[serde(rename = "safetyRatings")]
+    safety_ratings: Vec<SafetyRating>,
+}
+
 
 async fn make_request(data: &str) -> Result<String, Box<dyn std::error::Error>> {
     let clientbuild = Client::builder();
@@ -27,6 +83,17 @@ async fn make_request(data: &str) -> Result<String, Box<dyn std::error::Error>> 
     Ok(body)
 }
 
+fn extract_text_field(data: &str) -> Result<Vec<String>, serde_json::Error> {
+    let parsed_data: RespObj = serde_json::from_str(data)?;
+    let mut text_fields = vec![];
+    for content in parsed_data.candidates.iter() {
+      for part in content.content.parts.iter() {
+        text_fields.push(part.text.clone());
+      }
+    }
+    Ok(text_fields)
+  }
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let data = r#"{
@@ -34,7 +101,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
            {
                "parts": [
                    {
-                       "text": "What is ayurveda?"
+                       "text": "What is the Rust programming language? Respond in plain text."
                    }
                ]
            }
@@ -42,7 +109,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }"#;
 
     let response_body = make_request(data).await?;
-    println!("Actual Response: {}", response_body);
+    let text_fields = extract_text_field(&response_body)?;
+    println!("{}", text_fields[0]);
 
     Ok(())
 }
