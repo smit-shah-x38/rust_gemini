@@ -34,12 +34,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
            {
                "parts": [
                    {
-                       "text": "Write a story about a magic backpack."
+                       "text": "What is ayurveda?"
                    }
                ]
            }
        ]
-   }"#;
+    }"#;
 
     let response_body = make_request(data).await?;
     println!("Actual Response: {}", response_body);
